@@ -20,6 +20,20 @@ func(w http.ResponseWriter, r *http.Request) {
 Here `params[0]` contains substring that matches to all regexp, `params[1]` is the first group, `params[N]` is the N group.
 Thus,  for regexp `/book/([a-z]+)/(\d+)` and path `/shop/book/golang/123`, the parameters will contains: `[0] => "/book/golang/123", [1] => "golang", [2] => "123"`
 
+## Match example
+
+<table>
+<thead>
+<tr><th>Pattern</th><th>Path</th><th>Params</th></tr>
+</thead>
+<tbody>
+<tr><td>`^/simple`</td><td>`/simple/test`</td><td>[0]=>"/simple"</td></tr>
+<tr><td>`^/one/(.+?)/three$`</td><td>`/one/two/three`</td><td>[0]=>"/one/two/three", [1]=>"two"</td></tr>
+<tr><td>`^/one/(.+?)/four$`</td><td>`/one/two/three/four`</td><td>[0]=>"/one/two/three/four", [1]=>"two/three"</td></tr>
+
+</tbody>
+</table>
+
 ## Example
 
 ```go
