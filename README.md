@@ -27,9 +27,9 @@ Thus,  for regexp `/book/([a-z]+)/(\d+)` and path `/shop/book/golang/123`, the p
 <tr><th>Pattern</th><th>Path</th><th>Params</th></tr>
 </thead>
 <tbody>
-<tr><td>`^/simple`</td><td>`/simple/test`</td><td>[0]=>"/simple"</td></tr>
-<tr><td>`^/one/(.+?)/three$`</td><td>`/one/two/three`</td><td>[0]=>"/one/two/three", [1]=>"two"</td></tr>
-<tr><td>`^/one/(.+?)/four$`</td><td>`/one/two/three/four`</td><td>[0]=>"/one/two/three/four", [1]=>"two/three"</td></tr>
+<tr><td>^/simple</td><td>/simple/test</td><td>[0]=>"/simple"</td></tr>
+<tr><td>^/one/(.+?)/three$</td><td>/one/two/three</td><td>[0]=>"/one/two/three", [1]=>"two"</td></tr>
+<tr><td>^/one/(.+?)/four$</td><td>/one/two/three/four</td><td>[0]=>"/one/two/three/four", [1]=>"two/three"</td></tr>
 
 </tbody>
 </table>
