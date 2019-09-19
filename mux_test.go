@@ -2,6 +2,7 @@ package mux
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 )
@@ -12,26 +13,27 @@ func Test(t *testing.T) {
 		pattern    string
 		test       string
 		mustHit    bool
-		mustParams []string
+		mustParams map[string]string
 	}{
-		{"simple 1", "^/simple", "/simple/test", true, []string{"/simple"}},
-		{"simple 2", "^/simple", "/s1mp1e/test", false, []string{}},
-		{"simple 3", "^/simple$", "/simple/test", false, []string{}},
-		{"params 1", "^/one/(.+?)/three$", "/one/two/three", true, []string{"/one/two/three", "two"}},
-		{"params 2", "^/one/(.+?)/four$", "/one/two/three/four", true, []string{"/one/two/three/four", "two/three"}},
+		{"simple 1", "/simple", "/s1mp1e/test", false, map[string]string{}},
+		{"simple 2", "/simple", "/simple/test", true, map[string]string{}},
+		{"params 1", "/one/:middle/three", "/one/two/three", true, map[string]string{"middle": "two"}},
+		{"params 2", "/one/:middle/four", "/one/two/three/four", true, map[string]string{"middle": "two/three"}},
+		{"params 3", "/head/:param1/middle/:param2", "/head/one/two/middle/three/four", true, map[string]string{"param1": "one/two", "param2": "three/four"}},
+		{"params 4", "/head/:param1/middle/:param2/tail", "/head/one/two/middle/three/four/tail", true, map[string]string{"param1": "one/two", "param2": "three/four"}},
 	}
 	for _, test := range tests {
 		test = test
 		t.Run(test.name, func(t *testing.T) {
 			m := New()
-			hit := false
-			params := []string{}
+			params := map[string]string{}
 			m.Get(test.pattern, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				hit = true
-				params = r.Context().Value("params").([]string)
+				params = GetParams(r)
 			}))
 			u, _ := url.Parse("http://localhost" + test.test)
-			m.ServeHTTP(nil, &http.Request{URL: u, Method: http.MethodGet})
+			r := new(httptest.ResponseRecorder)
+			m.ServeHTTP(r, &http.Request{URL: u, Method: http.MethodGet})
+			hit := r.Code != 404
 			if test.mustHit != hit {
 				t.Fatalf("Incorrect hit, expected %v actual %v", test.mustHit, hit)
 			}
@@ -40,7 +42,7 @@ func Test(t *testing.T) {
 			}
 			for k, v := range test.mustParams {
 				if params[k] != v {
-					t.Fatalf("Expected param #%d be %s, actual %s", k, v, params[k])
+					t.Fatalf("Expected param %s be %s, actual %s", k, v, params[k])
 				}
 			}
 		})

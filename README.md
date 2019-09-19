@@ -1,6 +1,6 @@
-# Simple regexp based HTTP muxer
+# Simple HTTP muxer with greedy params
 
-This is a simple HTTP muxer. All path patterns must be a valid go regexp (https://golang.org/pkg/regexp/syntax/).
+This is a simple HTTP muxer. It works like [pat](https://github.com/bmizerany/pat) with important difference - all url params greedy, see above.
 
 ## Why another router???
 
@@ -8,31 +8,29 @@ I just need a simple router that can work on nested routes `/head/elem1/elem2/..
 
 Routers like [pat](https://github.com/bmizerany/pat), [chi](https://github.com/go-chi/chi), [echo](https://github.com/labstack/echo) are awesome, but they cannot cover this particular use case.
 
-## Params
-
-If one or more groups is present in the pattern (i.e. `/book/([a-z]+)/(\d+)`) you can get the corresponding parameters from the context:
-
-```go
-func(w http.ResponseWriter, r *http.Request) {
-	params := r.Context().Value("params").([]string)
-...
-``` 
-Here `params[0]` contains substring that matches to all regexp, `params[1]` is the first group, `params[N]` is the N group.
-Thus,  for regexp `/book/([a-z]+)/(\d+)` and path `/shop/book/golang/123`, the parameters will contains: `[0] => "/book/golang/123", [1] => "golang", [2] => "123"`
-
 ## Match example
 
 <table>
 <thead>
-<tr><th>Pattern</th><th>Path</th><th>Params</th></tr>
+<tr><th>Pattern</th><th>Path</th><th>Match?</th><th>Params</th></tr>
 </thead>
 <tbody>
-<tr><td>^/simple</td><td>/simple/test</td><td>[0]=>"/simple"</td></tr>
-<tr><td>^/one/(.+?)/three$</td><td>/one/two/three</td><td>[0]=>"/one/two/three", [1]=>"two"</td></tr>
-<tr><td>^/one/(.+?)/four$</td><td>/one/two/three/four</td><td>[0]=>"/one/two/three/four", [1]=>"two/three"</td></tr>
-
+<tr><td>/simple</td><td>/simple/test</td><td>Yes</td><td>{}</td></tr>
+<tr><td>/simple</td><td>/s1mp1e</td><td>No</td><td>{}</td></tr>
+<tr><td>/one/:param1/three</td><td>/one/two/three</td><td>Yes</td><td>{param1:"two"}</td></tr>
+<tr><td>/one/:param1/five</td><td>/one/two/three/four/five</td><td>Yes</td><td>{param1:"two/three/four"}</td></tr>
+<tr><td>/1/:param1/5/:param2/10/:param3</td><td>/1/2/3/4/5/6/7/8/9/10/11/12</td><td>Yes</td><td>{param1:"2/3/4", param2:"6/7/8/9", param3:"11/12"}</td></tr>
 </tbody>
 </table>
+
+## Params
+
+```go
+func(w http.ResponseWriter, r *http.Request) {
+	params := mux.GetParams(r)
+...
+``` 
+
 
 ## Example
 
@@ -50,9 +48,9 @@ import (
 func main() {
 	m := mux.New()
 
-	m.Get("/hello/(.+?)/(.+?)/world", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		params := r.Context().Value("params").([]string)
-		w.Write([]byte(fmt.Sprintf("First param: %s, second param: %s. All path: %s", params[1], params[2], params[0])))
+	m.Get("/head/:param1/middle/:param2/tail", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		params := mux.GetParams(r)
+		w.Write([]byte(fmt.Sprintf("param1=%s, param2=%s", params["param1"], params["param2"])))
 	}))
 
 	http.Handle("/", m)
