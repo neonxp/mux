@@ -48,6 +48,9 @@ func (m *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if m.NotFound != nil {
 		m.NotFound.ServeHTTP(w, r)
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte("Not found."))
 	}
 }
 
