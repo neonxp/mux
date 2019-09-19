@@ -37,7 +37,7 @@ type route struct {
 
 func (m *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	handlers := m.routes[r.Method]
-	path := strings.Split(strings.Trim(r.URL.EscapedPath(), " /"), "/")
+	path := strings.Trim(r.URL.EscapedPath(), " /")
 	for _, route := range handlers {
 		if matches, ok := match(route.pattern, path); ok {
 			ctx := context.WithValue(r.Context(), "params", matches)
@@ -55,8 +55,35 @@ func (m *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Add registers handler for specified method and matched pattern
 func (m *Mux) Add(method string, pattern string, handler http.Handler) {
+	pattern = strings.ToLower(strings.Trim(pattern, " /"))
+	p := make([]string, 0)
+	inparam := false
+	part := ""
+	for _, e := range pattern {
+		if inparam {
+			if !isAlpha(e) && !isNum(e) {
+				inparam = false
+				if part != "" {
+					p = append(p, part)
+					part = ""
+				}
+			}
+		} else {
+			if e == ':' {
+				inparam = true
+				if part != "" {
+					p = append(p, part)
+					part = ""
+				}
+			}
+		}
+		part += string(e)
+	}
+	if part != "" {
+		p = append(p, part)
+	}
 	m.routes[method] = append(m.routes[method], route{
-		pattern: strings.Split(strings.Trim(pattern, " /"), "/"),
+		pattern: p,
 		handler: handler,
 	})
 }
@@ -105,65 +132,41 @@ func GetParams(r *http.Request) map[string]string {
 	return params
 }
 
-func match(pattern []string, test []string) (map[string]string, bool) {
-	if len(test) < len(pattern) {
-		return nil, false
-	}
+func match(pattern []string, test string) (map[string]string, bool) {
 	matches := make(map[string]string, 0)
-	acc := make([]string, 0)
-	key := ""
-	cp := ""
-	ct := ""
-	for {
-		cp, pattern = pop(pattern)
-		if cp == "" && len(pattern) == 0 {
-			return matches, true
-		}
-		// current pattern - parameter key
-		if cp[:1] == ":" {
-			key = cp[1:]
-			acc = make([]string, 0)
-			// it is last parameter - so we just put rest test substrings to it value
-			if len(pattern) == 0 {
-				matches[key] = strings.Join(test, "/")
+	matched := ""
+	for idx, p := range pattern {
+		if p[:1] == ":" {
+			if idx == len(pattern)-1 {
+				matches[p[1:]] = test
 				return matches, true
 			}
-			continue
-		}
-		if key == "" {
-			// we not in parameter - just check that next test substring equals current pattern
-			ct, test = pop(test)
-			if ct == "" && len(test) == 0 {
-				return nil, false
-			}
-			if ct == cp {
+			matched, test = splitStr(test, pattern[idx+1])
+			matches[p[1:]] = matched
+		} else {
+			if len(p) <= len(test) && p == test[:len(p)] {
+				test = test[len(p):]
 				continue
 			}
 			return nil, false
 		}
-		// we in parameter - pushing test substrings to it value, while test substring not equals current pattern
-		for {
-			ct, test = pop(test)
-			if ct == "" && len(test) == 0 {
-				return nil, false
-			}
-			if ct == cp {
-				matches[key] = strings.Join(acc, "/")
-				key = ""
-				break
-			}
-			acc = append(acc, ct)
-		}
 	}
+	return matches, true
 }
 
-func pop(arr []string) (string, []string) {
-	if len(arr) == 0 {
-		return "", []string{}
+func splitStr(str string, m string) (string, string) {
+	for i := 0; i <= len(str)-len(m); i++ {
+		if str[i:(i+len(m))] == m {
+			return str[:i], str[i:]
+		}
 	}
-	head, tail := arr[0], arr[1:]
-	if head == "" && len(tail) > 0 {
-		return pop(tail)
-	}
-	return strings.ToLower(head), tail
+	return str, ""
+}
+
+func isAlpha(e int32) bool {
+	return e >= 'a' && e <= 'z'
+}
+
+func isNum(e int32) bool {
+	return e >= '0' && e <= '9'
 }

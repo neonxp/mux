@@ -20,7 +20,9 @@ func Test(t *testing.T) {
 		{"params 1", "/one/:middle/three", "/one/two/three", true, map[string]string{"middle": "two"}},
 		{"params 2", "/one/:middle/four", "/one/two/three/four", true, map[string]string{"middle": "two/three"}},
 		{"params 3", "/head/:param1/middle/:param2", "/head/one/two/middle/three/four", true, map[string]string{"param1": "one/two", "param2": "three/four"}},
-		{"params 4", "/head/:param1/middle/:param2/tail", "/head/one/two/middle/three/four/tail", true, map[string]string{"param1": "one/two", "param2": "three/four"}},
+		{"params 4", "/head/:param1/middle/:param2.html", "/head/one/two/middle/three/four.html", true, map[string]string{"param1": "one/two", "param2": "three/four"}},
+		{"params 5", "/head/:param1/middle/prefix:param2.html", "/head/one/two/middle/prefixthree/four.html", true, map[string]string{"param1": "one/two", "param2": "three/four"}},
+		{"params 6", "/head/:param1/middle/:param2/tail", "/head/one/two/middle/three/four/tail", true, map[string]string{"param1": "one/two", "param2": "three/four"}},
 	}
 	for _, test := range tests {
 		test = test
