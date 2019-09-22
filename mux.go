@@ -9,39 +9,37 @@ import (
 
 // Mux is a simple HTTP muxer
 type Mux struct {
-	routes   map[string][]route
+	routes   []route
 	NotFound http.Handler
 }
 
 // New returns new Mux instance
 func New() *Mux {
 	return &Mux{
-		routes: map[string][]route{
-			http.MethodGet:     {},
-			http.MethodPost:    {},
-			http.MethodPatch:   {},
-			http.MethodPut:     {},
-			http.MethodHead:    {},
-			http.MethodDelete:  {},
-			http.MethodConnect: {},
-			http.MethodOptions: {},
-			http.MethodTrace:   {},
-		},
+		routes: []route{},
 	}
 }
 
 type route struct {
-	pattern []string
-	handler http.Handler
+	method      string
+	pattern     []string
+	handler     http.Handler
+	middlewares []func(next http.Handler) http.Handler
 }
 
 func (m *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	handlers := m.routes[r.Method]
 	path := strings.Trim(r.URL.EscapedPath(), " /")
-	for _, route := range handlers {
+	for _, route := range m.routes {
+		if route.method != r.Method {
+			continue
+		}
 		if matches, ok := match(route.pattern, path); ok {
 			ctx := context.WithValue(r.Context(), "params", matches)
-			route.handler.ServeHTTP(w, r.WithContext(ctx))
+			handler := route.handler
+			for _, m := range route.middlewares {
+				handler = m(handler)
+			}
+			handler.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 	}
@@ -54,7 +52,7 @@ func (m *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // Add registers handler for specified method and matched pattern
-func (m *Mux) Add(method string, pattern string, handler http.Handler) {
+func (m *Mux) Add(method string, pattern string, handler http.Handler, middlewares ...func(next http.Handler) http.Handler) *Mux {
 	pattern = strings.ToLower(strings.Trim(pattern, " /"))
 	p := make([]string, 0)
 	inparam := false
@@ -82,45 +80,48 @@ func (m *Mux) Add(method string, pattern string, handler http.Handler) {
 	if part != "" {
 		p = append(p, part)
 	}
-	m.routes[method] = append(m.routes[method], route{
-		pattern: p,
-		handler: handler,
+	m.routes = append(m.routes, route{
+		method:      method,
+		pattern:     p,
+		handler:     handler,
+		middlewares: middlewares,
 	})
+	return m
 }
 
 // Get registers handler for GET method
-func (m *Mux) Get(pattern string, handler http.Handler) {
-	m.Add(http.MethodGet, pattern, handler)
+func (m *Mux) Get(pattern string, handler http.HandlerFunc, middlewares ...func(next http.Handler) http.Handler) *Mux {
+	return m.Add(http.MethodGet, pattern, handler, middlewares...)
 }
 
 // Post registers handler for POST method
-func (m *Mux) Post(pattern string, handler http.Handler) {
-	m.Add(http.MethodPost, pattern, handler)
+func (m *Mux) Post(pattern string, handler http.HandlerFunc, middlewares ...func(next http.Handler) http.Handler) *Mux {
+	return m.Add(http.MethodPost, pattern, handler, middlewares...)
 }
 
 // Put registers handler for PUT method
-func (m *Mux) Put(pattern string, handler http.Handler) {
-	m.Add(http.MethodPut, pattern, handler)
+func (m *Mux) Put(pattern string, handler http.HandlerFunc, middlewares ...func(next http.Handler) http.Handler) *Mux {
+	return m.Add(http.MethodPut, pattern, handler, middlewares...)
 }
 
 // Patch registers handler for PATCH method
-func (m *Mux) Patch(pattern string, handler http.Handler) {
-	m.Add(http.MethodPatch, pattern, handler)
+func (m *Mux) Patch(pattern string, handler http.HandlerFunc, middlewares ...func(next http.Handler) http.Handler) *Mux {
+	return m.Add(http.MethodPatch, pattern, handler, middlewares...)
 }
 
 // Options registers handler for OPTIONS method
-func (m *Mux) Options(pattern string, handler http.Handler) {
-	m.Add(http.MethodOptions, pattern, handler)
+func (m *Mux) Options(pattern string, handler http.HandlerFunc, middlewares ...func(next http.Handler) http.Handler) *Mux {
+	return m.Add(http.MethodOptions, pattern, handler, middlewares...)
 }
 
 // Del registers handler for DELETE method
-func (m *Mux) Del(pattern string, handler http.Handler) {
-	m.Add(http.MethodDelete, pattern, handler)
+func (m *Mux) Del(pattern string, handler http.HandlerFunc, middlewares ...func(next http.Handler) http.Handler) *Mux {
+	return m.Add(http.MethodDelete, pattern, handler, middlewares...)
 }
 
 // Head registers handler for HEAD method
-func (m *Mux) Head(pattern string, handler http.Handler) {
-	m.Add(http.MethodHead, pattern, handler)
+func (m *Mux) Head(pattern string, handler http.HandlerFunc, middlewares ...func(next http.Handler) http.Handler) *Mux {
+	return m.Add(http.MethodHead, pattern, handler, middlewares...)
 }
 
 //GetParams extracts route parameters from request
